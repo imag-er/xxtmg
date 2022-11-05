@@ -7,18 +7,19 @@ import os
 def driver_init() -> None:
     try:
         options = webdriver.EdgeOptions()
-
-        UA = 'user-agent="MQQBrowser/26 Mozilla/5.0 (Linux; U; Android 2.3.7; zh-cn; MB200 Build/GRJ22; CyanogenMod-7) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1"'
+        
+        UA = 'user-agent=Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US) AppleWebKit/525.13 (KHTML, like Gecko) Chrome/0.2.149.29 Safari/525.13'
         options.add_argument(UA)
         options.add_experimental_option('detach',True)
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
-        edge_service = Service(r"..\msedgedriver.exe")
+        edge_service = Service(r"msedgedriver.exe")
         global driver 
-        driver = webdriver.Edge(service = edge_service)
+        driver = webdriver.Edge(service = edge_service,options=options)
 
         os.system('chcp 65001')        
         # 找不到元素就等着 timeout = 5
         driver.implicitly_wait(5)
+        
     except:
         print("On driver_init error")
         sys.exit()
@@ -33,8 +34,9 @@ def login() -> None:
     account = 0
     password = 0
     global course_name
+
     course_name = input("请输入课程名")
-    with open(r'..\aandp.txt','r+',encoding='utf-8') as pf:
+    with open(r'aandp.txt','r+',encoding='utf-8') as pf:
         account,password = pf.readlines()
 
     print(f'读取账户信息:\n账号:{account}密码:{password}\n\n')
@@ -115,7 +117,7 @@ def choose_stage() -> None:
 
                 course_title = lis.find_element(By.CSS_SELECTOR,'div.chapter_item').get_attribute('title')           
 
-                print(f"课程\'{course_name}\'对应的章节\'{course_title}\'还有{goals_rest}个任务点,当前编号{start_cnt}")
+                print(f"课程\'{course_name}\'对应的章节\'{course_title}\'还有{goals_rest}个任务点,当前编号{start_cnt}",end='\r')
 
                 if goals_rest == '2':
                     break
