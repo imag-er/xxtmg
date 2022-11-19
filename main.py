@@ -29,13 +29,11 @@ def driver_init() -> None:
 def login() -> None:
     driver.get("http://i.mooc.chaoxing.com/")
 
-    account_box = driver.find_elements(By.ID,'phone')[0]
+    account_box = driver.find_element(By.ID,'phone')
 
     account = 0
     password = 0
-    global course_name
 
-    course_name = input("请输入课程名")
     with open(r'aandp.txt','r+',encoding='utf-8') as pf:
         account,password = pf.readlines()
 
@@ -45,19 +43,17 @@ def login() -> None:
     account_box.send_keys(account)
     print(f'填入账号:{account}',end='')
 
-    password_box = driver.find_elements(By.ID,'pwd')[0]
+    password_box = driver.find_element(By.ID,'pwd')
     password_box.click()
     password_box.send_keys(password)
     print(f'填入密码:{password}',end='')
     
-    loginBtn = driver.find_elements(By.ID,'loginBtn')[0]
+    loginBtn = driver.find_element(By.ID,'loginBtn')
     loginBtn.click()
     print('登录成功\n')
-
-    print(f"课程:\'{course_name}\'")
-
     
 def choose_course() -> None:
+
     # 傻逼学习通开发者套了一层iframe 害老子debug半天不知道为啥找不到dom
     driver.switch_to.frame('frame_content')
     print('current url:{}'.format(driver.current_url))
@@ -68,115 +64,78 @@ def choose_course() -> None:
     if len(classBtn) == 0:
         print("无法找到<a>标签")
         return
-    course_addr = None
-    for addr in classBtn:
-        span = addr.find_element(By.CSS_SELECTOR,'span')
-        property = span.get_property('title')
-        if property == course_name:
-            course_addr = addr
-            break
-        
-    if course_addr is None:
-        print('无法找到课程"{}"'.format(course_name))
-        return
-    print(f"已找到课程\'{course_name}\'对应的<a>标签")
-    course_addr.click()
-    
+    i = 0
+    course_name_list = []
+    for btn in classBtn:
+        course_name_list.append(
+            btn.find_element(By.CSS_SELECTOR,'span')
+                .get_property('title')
+            ) 
+        print(f'{i} : {course_name_list[i]}')
+        i += 1
+
+    course_choose = int(input('请输入课程序号：'))
+    global course_name 
+    if course_choose > -1 and course_choose < len(classBtn):
+        course_name = course_name_list[course_choose]
+        print(f"已找到课程\'{course_choose}:{course_name}\'对应的<a>标签")
+
+        class_choose_btn = classBtn[course_choose]
+        driver.execute_script('arguments[0].click();',class_choose_btn)
+
     driver.switch_to.default_content()
 
 def choose_stage() -> None:
-    try:
-        while True:
-        # 此时已经打开了新的标签页
-        # 需要切换过去
-            choose_course()
-            hWindows = driver.window_handles
-            driver.switch_to.window(hWindows[1])
-
-            driver.switch_to.frame('frame_content-zj')
-
-            # 获取<ul>标签对象
-            stage_list = \
-                driver.find_elements( 
-                    By.CSS_SELECTOR,
-                    'div.chapter_unit > div.catalog_level > ul > li'
-                ) 
-
-            if len(stage_list) == 0:
-                print('无法找到课程<li>')
-                return
-            print(f'已找到课程\'{course_name}\'对应的<li>列表')
-
-            start_cnt = 0 
-            for lis in stage_list:
-                
-                # 向下滑动直到元素可见
-                driver.execute_script("arguments[0].scrollIntoView();", lis)
-
-                goals_rest = lis.find_element(By.CSS_SELECTOR,'span.catalog_points_yi').get_attribute('innerText') 
-
-                course_title = lis.find_element(By.CSS_SELECTOR,'div.chapter_item').get_attribute('title')           
-
-                print(f"课程\'{course_name}\'对应的章节\'{course_title}\'还有{goals_rest}个任务点,当前编号{start_cnt}",end='\r')
-
-                if goals_rest == '2':
-                    break
-                else:
-                    start_cnt += 1 
-
-            # 先点击进入播放画面
-            stage_list[start_cnt].click()
-            choose_chapter()
-
-            driver.close()
-            driver.switch_to.window(hWindows[0])
-    except:
-        print('running')
-
-def choose_chapter() -> None:
-    #已上课的标志
-    #tips = driver.find_elements(By.CSS_SELECTOR,'span > .prevHoverTips')
-    #tips[0].
-    tips = driver.find_elements(By.CSS_SELECTOR,'.prevHoverTips')
-
-    start_cnt = 0
-    for tip in tips:
-        tip_content = tip.get_attribute('textContent')
-        if tip_content == '已完成':
-            start_cnt += 1
-            continue
-        if tip_content == '1个待完成任务点':
-            start_cnt += 1
-            continue
-        if tip_content == '2个待完成任务点':
-            break
-    chapter_par = driver.find_elements(
-        By.CSS_SELECTOR,
-        'div.posCatalog_level > ul'
-        )
-
-    chapter = []
-    for c in chapter_par:
-        chapter += c.find_elements(By.CSS_SELECTOR,'li')
+    # 先选择课程
+    choose_course()
     
-    chapter = chapter[start_cnt]
-    #开始点击
-    chapter_span = chapter.find_element(By.CLASS_NAME,'posCatalog_name')
-    print ( "正在观看:{}".format(chapter_span.get_attribute('title') ) )
-    onplay(chapter_span)
+    # 切换到章节列表
+    hWindows = driver.window_handles
+    driver.switch_to.window(hWindows[1])
 
-    driver.switch_to.default_content()
+    # 点击左侧章节按钮
+    driver.find_element(By.XPATH,'//i[@class=\'zj\']/..').click()
 
-    return
-
-def onplay(chapter_span) -> None:
+    driver.switch_to.frame('frame_content-zj')
     
-    # 向下滑动直到元素可见
-    driver.execute_script("arguments[0].scrollIntoView();", chapter_span)
-    
-    # 点击右侧标签
-    chapter_span.click()
+    # 获取章节<li>标签对象
+    stage_list = \
+        driver.find_elements( 
+            By.CSS_SELECTOR,
+            'div.chapter_unit > div.catalog_level > ul > li'
+        ) 
 
+    if len(stage_list) == 0:
+        print('无法找到课程<li>')
+        return
+    print(f'已找到课程\'{course_name}\'对应的<li>列表')
+
+    # 获取章节信息并向用户展示
+    index = 0 
+    for lis in stage_list:
+
+        # 向下滑动直到元素可见
+        driver.execute_script("arguments[0].scrollIntoView();", lis)
+            
+        course_title = lis.find_element(By.CSS_SELECTOR,'div.chapter_item').get_attribute('title')           
+
+        status = lis.find_element(By.CSS_SELECTOR,'span.bntHoverTips').get_attribute('textContent')
+
+        print(f'{index} : 当前章节：{course_title} 状态：{status}')
+        index += 1
+    
+    index = int(input('请输入开始章节序号'))
+
+    while True:
+        # 先点击进入播放画面
+        stage_list[index].click()
+
+        index += 1
+        onplay()
+        driver.back()
+
+def onplay() -> None:
+    
     # 切换到SB iframe
     driver.switch_to.frame(
         driver.find_element(
@@ -253,6 +212,7 @@ def onplay(chapter_span) -> None:
         dtime = int(dtime_str[:-3]) * 60 + int(dtime_str[-2:])
 
         sleep(2)
+    driver.switch_to.default_content()
 
     return 
 
@@ -260,7 +220,6 @@ def main() -> None:
     driver_init()
     login()
     choose_stage()
-    choose_chapter()
 
 if __name__ == '__main__':
     main()
