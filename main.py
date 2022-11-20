@@ -96,7 +96,10 @@ def choose_stage() -> None:
     # 点击左侧章节按钮
     driver.find_element(By.XPATH,'//i[@class=\'zj\']/..').click()
 
-    driver.switch_to.frame('frame_content-zj')
+    # 点章节按钮会产生好多iframe sbxxt相当离谱
+    driver.switch_to.frame(
+        driver.find_elements(By.CSS_SELECTOR,'iframe#frame_content-zj')[-1]
+        )
     
     # 获取章节<li>标签对象
     stage_list = \
@@ -112,10 +115,9 @@ def choose_stage() -> None:
 
     # 获取章节信息并向用户展示
     index = 0 
-    for lis in stage_list:
-
+    for lis in stage_list:    
         # 向下滑动直到元素可见
-        driver.execute_script("arguments[0].scrollIntoView();", lis)
+        driver.execute_script("arguments[0].scrollIntoView(true);", lis)
             
         course_title = lis.find_element(By.CSS_SELECTOR,'div.chapter_item').get_attribute('title')           
 
@@ -127,11 +129,12 @@ def choose_stage() -> None:
     index = int(input('请输入开始章节序号'))
 
     while True:
-        # 先点击进入播放画面
         stage_list[index].click()
 
         index += 1
         onplay()
+
+        driver.switch_to.default_content()
         driver.back()
 
 def onplay() -> None:
@@ -194,8 +197,6 @@ def onplay() -> None:
     var v = frameObj.contents().eq(0).find("video#video_html5_api").get(0);
     v.pause = false; v.playbackRate = 2;
     '''
-
-
     while ctime != dtime:
         print(
             '------已观看 {} // {} 当前进度{:.2f}%------'.format(
@@ -211,7 +212,7 @@ def onplay() -> None:
         ctime = int(ctime_str[:-3]) * 60 + int(ctime_str[-2:])
         dtime = int(dtime_str[:-3]) * 60 + int(dtime_str[-2:])
 
-        sleep(2)
+        sleep(1)
     driver.switch_to.default_content()
 
     return 
