@@ -3,6 +3,7 @@ import sys
 from selenium import webdriver
 from selenium.webdriver.edge.service import Service
 from selenium.webdriver.common.by import By
+import selenium as sln
 import os
 
 
@@ -20,13 +21,13 @@ def driver_init() -> None:
 
         os.system('chcp 65001')
         # 找不到元素就等着 timeout = 5
-        driver.implicitly_wait(10)
+        driver.implicitly_wait(5)
 
     except:
         print("On driver_init error")
         sys.exit()
 
-    print(f"成功启动Edge驱动\n\ntimeout = 10s\n\nUser Agent:\n{UA}\n\n")
+    print(f"成功启动Edge驱动\n\ntimeout = 5s\n\nUser Agent:\n{UA}\n\n")
 
 
 def login() -> None:
@@ -120,6 +121,12 @@ def choose_stage() -> None:
 
     # 获取章节信息并向用户展示
     index = 0
+    recommended_index = -1
+    prev_score = 1
+    score = 0
+
+    show_last = 5
+
     for lis in stage_list:
         # 向下滑动直到元素可见
         driver.execute_script("arguments[0].scrollIntoView(true);", lis)
@@ -131,11 +138,27 @@ def choose_stage() -> None:
             By.CSS_SELECTOR, 'span.bntHoverTips').get_attribute('textContent')
 
         print(f'{index} : 当前章节：{course_title} 状态：{status}')
+
+        if recommended_index == -1:
+            score = int(status[0])
+            if score != prev_score:
+                recommended_index = index
+            else:
+                prev_score = score
+        
+        if recommended_index != -1:
+            show_last -= 1
+
+        if show_last < 0:
+            break
         index += 1
 
-    index = int(input('请输入开始章节序号'))
+    index_str = input(f'请输入开始章节序号 智能推荐{recommended_index}({{Enter}}/Index):')
+    if index_str == '':
+        index = recommended_index
+    else:
+        index = int(index_str)
     stage_list[index].click()
-
 
     while True:
         index += 1
@@ -148,6 +171,14 @@ def choose_stage() -> None:
 
 
 def onplay() -> None:
+    
+    vdoswc = driver.find_element(
+        By.CSS_SELECTOR,
+        "li#dct2"
+    )
+    
+    if vdoswc .get_attribute('title') == '视频':
+        vdoswc.click()
 
     # 切换到SB iframe
     driver.switch_to.frame(
@@ -202,6 +233,10 @@ def onplay() -> None:
 
     driver.execute_script('arguments[0].pause = false;', vdo)
     driver.execute_script('arguments[0].playbackRate = 2;', vdo)
+    driver.execute_script('arguments[0].muted = true;', vdo)
+    # driver.execute_script('arguments[0].autoplay = true;', vdo)
+    
+
 
     # js_str = \
     '''
@@ -211,19 +246,19 @@ def onplay() -> None:
     '''
     while ctime != dtime:
         print(
-            '------已观看 {} // {} 当前进度{:.2f}%------'.format(
+            '------已观看 {} // {} 当前进度{:.4f}%------'.format(
                 ctime, dtime,
                 100 * ctime / dtime
             ),
             end='\r'
         )
+        driver.execute_script('arguments[0].play();', vdo)
 
         ctime_str = currenttime_span.get_attribute('textContent')
         dtime_str = durationtime_span.get_attribute('textContent')
 
         ctime = int(ctime_str[:-3]) * 60 + int(ctime_str[-2:])
         dtime = int(dtime_str[:-3]) * 60 + int(dtime_str[-2:])
-
         sleep(1)
     driver.switch_to.default_content()
 
@@ -231,9 +266,18 @@ def onplay() -> None:
 
 
 def main() -> None:
-    driver_init()
-    login()
-    choose_stage()
+    try:
+        driver_init()
+        login()
+        choose_stage()
+    except sln.common.exceptions.NoSuchWindowException:
+        try:
+            print('-----\n-----\n\n异常关闭 重启中\n\n\n-----\n-----\n')
+            driver_init()
+            login()
+            choose_stage()
+        except sln.common.exceptions.NoSuchWindowException:
+            driver.quit()
 
 
 if __name__ == '__main__':
